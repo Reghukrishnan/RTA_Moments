@@ -107,7 +107,7 @@ function SRTA(dχ::Matrix,χ,t::Float64,p)
     ωᵣ = ωᵣ⁰*((T/T₀))
     G30 = Gnl(ζ,3.0,0)
     G40 = Gnl(ζ,4.0,0)
-    G40 = Gnl(ζ,4.0,1.0)
+    G41 = Gnl(ζ,4.0,1.0)
     G50 = Gnl(ζ,5.0,0)
     
     Gd = G40^2 - G30*G50
