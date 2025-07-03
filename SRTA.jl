@@ -6,12 +6,12 @@ include("Auxiliary.jl")
 #-----------SCALED INITIAL CONDITIONS---------------------
 
 T₀  = 1             #  GeV     
-m    = 0.1          # m corresponds to m = 0.1  Gev and T = 1GeV
+m    = 0.0          # m corresponds to m = 0.1  Gev and T = 1GeV
 α₀   = 0            # μ/T 
 
 
 tₛ  =  0.1           # fm
-tₑ  = 100
+tₑ  = 700
 τ₀  = 0.1
 
 η₀      =   (tₛ/τ₀)*(T₀/5)
@@ -62,31 +62,16 @@ p = (N,L,ωᵣ⁰,nₐᵣ,nₙ,nₑ)
 
 #---------------------------------------------------
 T = χ[:,nₑ,L+1]
+α = χ[:,nₙ,L+1]
 τ = ((T).*(tspan)./((5)*η₀))  # \tau/\tau_R scaled time variable
 
 
-plot(τ,χ[:,nₑ,1], 
-        xaxis   =:log ,
-        xlabel  =   "τ",  
-        ylabel  =   "χ",
-        ylims   =   (0.9975,1.0025),
-        #yticks  =   [0,0.25,0.5,0.75,1],
-        label   =   " - χ₁,₁",
-        dpi     =   300)
-plot(τ,χ[:,nₙ,1], 
-        xaxis   =:log ,
-        xlabel  =   "τ",  
-        ylabel  =   "χ",
-        ylims   =   (0.9975,1.0025),
-        #yticks  =   [0,0.25,0.5,0.75,1],
-        label   =   " - χ₀,₁",
-        dpi     =   300)
 
-plot(τ,T, 
+plot(τ,α, 
         xaxis   =:log ,
         xlabel  =   "τ",  
-        ylabel  =   "T",
+        ylabel  =   "α",
         #ylims   =   (0,1),
         #yticks  =   [0,0.25,0.5,0.75,1],
-        label   =   " T",
+        label   =   " α",
         dpi     =   300)

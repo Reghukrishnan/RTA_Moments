@@ -3,14 +3,16 @@ using Integrals
 using NLsolve
 
 
-
+Γ = gamma
 
 #Integrant 
-function g(y,p)
+function g(u,p)
     ζ = p[1]
     n = p[2]
     l = p[3]
-    return ( y^(n-2.0*l-2))*(y^2.0 - 1)^(l + 0.5)*exp(-ζ*y)
+    y = 1 + u/(1-u)
+
+    return (1/(1-u)^2)*( y^(n-2.0*l-2))*(y^2.0 - 1)^(l + 0.5)*exp(-ζ*y)
 end
 
 function Gnl(ζ,n,l)
@@ -18,11 +20,11 @@ function Gnl(ζ,n,l)
     if ζ == 0
         return Γ(n)
     else
-        domain  = (1.0,ζ*10 + 1000.0)
+        domain  = (0.0,1.0)
         
         prob    = IntegralProblem(g, domain,[ζ,n,l] )
         Gₙₗ      = solve(prob, QuadGKJL())
-        return (ζ^(n+1))*Gₙₗ[1]
+        return (ζ^(n))*Gₙₗ[1]
     end
 end
 
@@ -31,7 +33,7 @@ function dGnl(ζ,n,l)
     if ζ == 0
         return 0
     else
-        return   ((n+1)*Gnl(ζ,n,l) - Gnl(ζ,n+1,l))/ζ
+        return   (n*Gnl(ζ,n,l) - Gnl(ζ,n+1,l))/ζ
     end
 end
 
@@ -141,7 +143,7 @@ function SRTA(dχ::Matrix,χ,t::Float64,p)
     end
     dχ[nₑ,L+1] = ( G41*G30/Gd)*χ[nₑ,2]*χ[nₑ,L+1]/(3t)
 
-    dχ[nₙ,L+1] = -( (G50-G40)/Gd)*G40*(χ[nₑ,2]/(3t))- (1/t)
+    dχ[nₙ,L+1] = -( (G41*G40)/Gd)*(χ[nₑ,2]/(3t))- (1/t)
     return dχ
 end
 
