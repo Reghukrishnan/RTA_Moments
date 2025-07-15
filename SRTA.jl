@@ -5,14 +5,14 @@ include("Auxiliary.jl")
 
 #-----------SCALED INITIAL CONDITIONS---------------------
 
-T₀  = 1             #  GeV     
-m    = 0.0          # m corresponds to m = 0.1  Gev and T = 1GeV
-α₀   = 0            # μ/T 
+T₀      = 1.0          #  GeV     
+m       = 0         # m corresponds to m = 0.1  Gev and T = 1GeV
+α₀      = 0.0          # μ/T 
 
 
-tₛ  =  0.1           # fm
-tₑ  = 700
-τ₀  = 0.1
+tₛ      =  0.1           # fm
+tₑ      = 100
+τ₀      = 0.1
 
 η₀      =   (tₛ/τ₀)*(T₀/5)
 #---------------------------------------------------
@@ -49,7 +49,7 @@ println("t₀    : ",tₛ)
 println("η₀/s₀ : ",η₀)
 
 
-Nₚ = 5000                        # Number of time steps
+Nₚ = 10000                        # Number of time steps
 ProgressBar = Progress(Nₚ)
 tspan = trange((tₛ,tₑ),Nₚ,"exp")  # Exponentially scaled time steps
 
@@ -67,11 +67,11 @@ T = χ[:,nₑ,L+1]
 
 
 
-plot(τ,α, 
-        xaxis   =:log ,
-        xlabel  =   "τ",  
-        ylabel  =   "α",
+plot(τ,T , 
+        xaxis   =:log,
+        xlabel  =   "τ", 
+        ylabel  =   "T",
         #ylims   =   (0,1),
         #yticks  =   [0,0.25,0.5,0.75,1],
         label   =   " α",
-        dpi     =   300)
+        dpi     =   300 )
