@@ -1,27 +1,12 @@
 using SpecialFunctions
-#using Integrals
-using NonlinearSolve
-using FastGaussQuadrature
-using LsqFit
+using Integrals
+using NLsolve
 
 
-"""
 
 
-General Comments
---All functions will input and oputput in the order  πₚ,Πₚ
-
-"""
-
-Γ = gamma
-
-uᵢ,uwᵢ  = gausslaguerre(100)
-vᵢ,vwᵢ  = gausslegendre(50)
-
-
-#----------------------------------------------------------------------------------------------------------------------------
-
-function gnl(u,p)
+#Integrant 
+function g(y,p)
     ζ = p[1]
     n = p[2]
     l = p[3]
@@ -40,6 +25,9 @@ function Gnl(n,l,ζ)
         return exp(-ζ) * sum( (uwᵢ).*gx )
     end
 end
+
+
+
 
 #--------------------Modified Maximum Entropy Distribution-------------------------------------------------------
 function mnl(u,v,p)
@@ -414,7 +402,7 @@ function SRTA(dχ::Matrix,χ,t::Float64,p)
     nₐᵣ = p[4]
     nₙ  = p[5]
     nₑ  = p[6]
-  
+    γ  = p[7]
 
     α = χ[nₙ,L+1]
     T = χ[nₑ,L+1]
@@ -450,14 +438,14 @@ function SRTA(dχ::Matrix,χ,t::Float64,p)
                 h = (1/3)*( (( Gnl(ζ,nᵥ + 4.0,l-1)*G30 -  G40*Gnl(ζ,nᵥ + 3.0,l-1) )/(Gd))*(G41/Gnl(ζ,nᵥ + 3.0,l-1))*(χ[nₑ,2]* χ[n,l])  +  3*(nᵥ-2(l-1))*((2*(l-1) +1.0)/(2*(l-1) +3.0))*( Gnl(ζ,nᵥ + 3.0,l)/Gnl(ζ,nᵥ + 3.0,l-1) )* χ[n,l+1] )
                 
                 f = (2*(l-1))*χ[n,l] 
-                r = ωᵣ*( χ[n,l] - 1 )
+                r = γ*ωᵣ*( χ[n,l] - 1 )
 
                 dχ[n,l] = -( h/t)- ( f/t)  - ( r )  
             elseif l == L
                 h = (1/3)*( (( Gnl(ζ,nᵥ + 4,l-1)*G30 -  G40*Gnl(ζ,nᵥ + 3,l-1) )/(Gd))*(G41/Gnl(ζ,nᵥ + 3,l-1))*(χ[nₑ,2]* χ[n,l])  +  3* (nᵥ-2(l-1)) *( (2*(l-1) +1)/(2*(l-1) +3) )*( Gnl(ζ,nᵥ + 3.0,l)/Gnl(ζ,nᵥ + 3.0,l-1) )* 1 )
                 
                 f = (2*(l-1))*χ[n,l] 
-                r = ωᵣ*( χ[n,l] - 1 )
+                r = γ*ωᵣ*( χ[n,l] - 1 )
 
                 dχ[n,l] = -( h/t)- ( f/t)  - ( r )  
             else
@@ -545,6 +533,132 @@ function DSRTA(dχ::Matrix,χ,t::Float64,p)
     dχ[nₑ+1,L+1] = uᵣ
 
     return dχ
+end
+
+
+#---------------------------------------
+
+
+
+
+
+
+
+function g_q(y,p)
+    ζ = p[1]
+    α = p[2]
+    n = p[3]
+    l = p[4]
+    λ = p[5]
+    r = p[5]
+    return ( y^(n-2.0*l-2))*(y^2.0 - 1)^(l + 0.5)/( (exp(ζ*y - α) + r )^λ )
+end
+
+function Gnl_q(ζ,α,n,l,λ=1,r = 1)       # r = 0 MB, r = 1 FD, r = -1 BE
+    
+    if ζ == 0
+        return Γ(n)
+    else
+        domain  = (1.0,ζ*10 + 1000.0)
+        
+        prob    = IntegralProblem(g, domain,[ζ,α,n,l,λ,r] )
+        Gₙₗ      = solve(prob, QuadGKJL())
+        return (ζ^(n+1))*Gₙₗ[1]
+    end
+end
+
+function Init_χ_Eq_q!(ρ₀,nₐᵣ,L,m,T,α,r)
+    ζ = m/T
+    for (n,nv) in enumerate(nₐᵣ)    
+        for l in 1:L  
+            #println(nv," ",l)      
+            ρ₀[n,l] = ρeq_q(T,α,n,l,r)  #+ ρeq(T₀,μ₀,nv,0)*(l/(2*l + 1)^(2))
+        end
+    end
+end
+
+function ρeq_q(T,α,n,l,r=0,λ=1)
+    ζ = m/T
+    return ((T^(n+3))/(2*(l-1)+1)*(2π)^2)*Gnl_q(ζ,α,n,l-1,r )
+end
+
+
+
+
+function Tα!(F,x)
+    T = x[1]
+    α = x[2]
+    ζ = m/T                                 # m is defined globally
+    F[1] = (T^4)*Gnl_q(ζ,α,1,0,r)/(2π)      # r is defined globally
+    F[2] = (T^3)*Gnl_q(ζ,α,0,0,r)/(2π)
+end
+
+
+
+
+
+#---------------
+function RTA(dρ::Matrix,ρ,t::Float64,p)
+    N   = p[1]
+    L   = p[2]
+    ωᵣ⁰   = p[3]
+    nₐᵣ = p[4]
+    nₙ  = p[5]
+    nₑ  = p[6]
+    #γ  = p[7]       #γ = 0 implies free streaming system
+
+    ϵd  =  ρ[nₑ,1]
+    nd  =  ρ[nₙ,1]
+
+    # Initial Guess, we use conformal MB results
+    Tₚ = (1/3)*(ϵd/nd)
+    αₚ = log( 2*(Tₚ^3)/(nd*(2π)^2)  )
+    
+    # USe a root finding algorith to find the Temperature and α
+
+    sol = nsolve(Tα!,[Tₚ,αₚ])
+    T, α = sol.zero
+    
+    ζ = m/T
+    
+    ωᵣ = ωᵣ⁰*((T/T₀))
+    
+
+    for (n,nᵥ) in enumerate(nₐᵣ)        
+        #--------------------------------------------------------------------------
+        for l = 1:L+1           
+            #--------------------------------------------------------------------------
+
+            # Here for lmax = L-1 we put the truncation condition.
+            if l < L           
+
+                f = (2(l-1)+1)*ρ[n,l] + (n-2l)*ρ[n,l+1] # Free streaming part
+
+                r = γ*ωᵣ*( ρ[n,l] - ρeq_q(n,l-1,r) )        # Relaxation part
+
+                dρ[n,l] = - ( f/t)  - ( r )  
+
+            elseif l == L
+
+                f = (2(l-1)+1)*ρ[n,l] + (n-2l)*ρeq(n,l) # L+1 moment is at equilibrium (closure condition)
+
+                r = γ*ωᵣ*( ρ[n,l] - ρeq_q(n,l-1,r) )
+
+                dρ[n,l] = - ( f/t)  - ( r )  
+            else
+                dρ[n,L+1] = 0  
+            end         
+        end
+                
+    end
+
+    dTϵ = 3ζ*ρ[nₑ,1] + (ζ^2)*ρeq_q(T,α,2,0,r,1) + r*(ζ^2 )*ρeq_q(T,α,2,0,r,2) 
+    dTn = 3ζ*ρ[nₙ,1] + (ζ^2)*ρeq_q(T,α,2,0,r,1) + r*(ζ^2 )*ρeq_q(T,α,2,0,r,2)
+
+    dρ[nₑ,L+1] = ( G41*G30/Gd)*χ[nₑ,2]*χ[nₑ,L+1]/(3t)
+
+    dρ[nₙ,L+1] = -( (G50-G40)/Gd)*G40*(χ[nₑ,2]/(3t))- (1/t)
+    return dρ
 end
 
 

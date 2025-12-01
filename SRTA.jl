@@ -55,7 +55,7 @@ tspan = trange((tₛ,tₑ),Nₚ,"exp")  # Exponentially scaled time steps
 
 #------------------------------------------------
 println("\nSolving Scaled RTA.")
-p = (N,L,ωᵣ⁰,nₐᵣ,nₙ,nₑ)
+p = (N,L,ωᵣ⁰,nₐᵣ,nₙ,nₑ,1)
 
 χ = RK4(χ₀,tspan,SRTA,p)     # Rk4 solver for differential equations. Returns the moments as a function of time χ[t,n,l]
 
@@ -66,11 +66,16 @@ T = χ[:,nₑ,L+1]
 τ = ((T).*(tspan)./((5)*η₀))  # \tau/\tau_R scaled time variable
 
 
+plot(τ,T, 
+        xaxis   =:log ,
+        xlabel  =   "τ",  
 
 plot(τ,T , 
         xaxis   =:log,
         xlabel  =   "τ", 
         ylabel  =   "T",
+        dpi     =   300)
+
         #ylims   =   (0,1),
         #yticks  =   [0,0.25,0.5,0.75,1],
         label   =   " α",
