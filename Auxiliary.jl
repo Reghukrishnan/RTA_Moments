@@ -6,10 +6,21 @@ using NLsolve
 
 
 #Integrant 
-function g(y,p)
+using FastGaussQuadrature
+
+
+Γ = gamma
+
+uᵢ,uwᵢ  = gausslaguerre(100)
+vᵢ,vwᵢ  = gausslegendre(50)
+#Integrant 
+function gnl(u,p)
     ζ = p[1]
     n = p[2]
     l = p[3]
+    y = ζ .+ u
+
+    return @. ( y^(n-2.0*l-2.0))*(y^2.0 - ζ^2.0)^(l + 0.5)
     y = ζ .+ u
 
     return @. ( y^(n-2.0*l-2.0))*(y^2.0 - ζ^2.0)^(l + 0.5)
@@ -17,10 +28,16 @@ end
 
 function Gnl(n,l,ζ)
     #println("---------",ζ)
+function Gnl(n,l,ζ)
+    #println("---------",ζ)
     if ζ == 0
         #println("Called - 1")
         return Γ(n)        
+        #println("Called - 1")
+        return Γ(n)        
     else
+        gx  = gnl(uᵢ,(ζ,n,l))
+        return exp(-ζ) * sum( (uwᵢ).*gx )
         gx  = gnl(uᵢ,(ζ,n,l))
         return exp(-ζ) * sum( (uwᵢ).*gx )
     end
@@ -604,20 +621,20 @@ function RTA(dρ::Matrix,ρ,t::Float64,p)
     ωᵣ⁰   = p[3]
     nₐᵣ = p[4]
     nₙ  = p[5]
-    nₑ  = p[6]
-    #γ  = p[7]       #γ = 0 implies free streaming system
+    nₑ  = p[6]      
+    γ  = p[7]       #γ = 0 implies free streaming system
 
     ϵd  =  ρ[nₑ,1]
     nd  =  ρ[nₙ,1]
-
-    # Initial Guess, we use conformal MB results
-    Tₚ = (1/3)*(ϵd/nd)
-    αₚ = log( 2*(Tₚ^3)/(nd*(2π)^2)  )
+    
+    
+    T = ρ[nₑ,L+1]
+    α = ρ[nₙ,L+1]
     
     # USe a root finding algorith to find the Temperature and α
-
-    sol = nsolve(Tα!,[Tₚ,αₚ])
-    T, α = sol.zero
+    # Initial Guess, we use conformal MB results
+    #sol = nsolve(Tα!,[Tₚ,αₚ])
+    #T, α = sol.zero
     
     ζ = m/T
     
@@ -632,19 +649,19 @@ function RTA(dρ::Matrix,ρ,t::Float64,p)
             # Here for lmax = L-1 we put the truncation condition.
             if l < L           
 
-                f = (2(l-1)+1)*ρ[n,l] + (n-2l)*ρ[n,l+1] # Free streaming part
+                free = (2(l-1)+1)*ρ[n,l] + (n-2l)*ρ[n,l+1] # Free streaming part
 
-                r = γ*ωᵣ*( ρ[n,l] - ρeq_q(n,l-1,r) )        # Relaxation part
+                relx = γ*ωᵣ*( ρ[n,l] - ρeq_q(T,α,n,l-1,r,1) )        # Relaxation part
 
-                dρ[n,l] = - ( f/t)  - ( r )  
+                dρ[n,l] = - ( free/t)  - ( relx )  
 
             elseif l == L
 
-                f = (2(l-1)+1)*ρ[n,l] + (n-2l)*ρeq(n,l) # L+1 moment is at equilibrium (closure condition)
+                free = (2(l-1)+1)*ρ[n,l] + (n-2l)*ρeq_q(T,α,n,l-1,r,1) # L+1 moment is at equilibrium (closure condition)
 
-                r = γ*ωᵣ*( ρ[n,l] - ρeq_q(n,l-1,r) )
+                relx = γ*ωᵣ*( ρ[n,l] - ρeq_q(T,α,n,l-1,r,1) )
 
-                dρ[n,l] = - ( f/t)  - ( r )  
+                dρ[n,l] = - ( free/t)  - ( relx )  
             else
                 dρ[n,L+1] = 0  
             end         
@@ -652,12 +669,19 @@ function RTA(dρ::Matrix,ρ,t::Float64,p)
                 
     end
 
-    dTϵ = 3ζ*ρ[nₑ,1] + (ζ^2)*ρeq_q(T,α,2,0,r,1) + r*(ζ^2 )*ρeq_q(T,α,2,0,r,2) 
-    dTn = 3ζ*ρ[nₙ,1] + (ζ^2)*ρeq_q(T,α,2,0,r,1) + r*(ζ^2 )*ρeq_q(T,α,2,0,r,2)
+    v = 1/T
+    dTϵ = 3v*ϵd + (v^2)*ρeq_q(T,α,2,0,r,1) + r*(v^2 )*ρeq_q(T,α,2,0,r,2) 
+    dTn = 3v*nd + (v^2)*ρeq_q(T,α,1,0,r,1) + r*(v^2 )*ρeq_q(T,α,1,0,r,2)
 
-    dρ[nₑ,L+1] = ( G41*G30/Gd)*χ[nₑ,2]*χ[nₑ,L+1]/(3t)
+    dαϵ = -ϵd + r*ρeq_q(T,α,1,0,r,2) 
+    dαn = -nd + r*ρeq_q(T,α,1,0,r,2)
 
-    dρ[nₙ,L+1] = -( (G50-G40)/Gd)*G40*(χ[nₑ,2]/(3t))- (1/t)
+    D = dTϵ * dαn - dαϵ * dTn   # Determinant of the matrix
+
+    dρ[nₑ,L+1] =  (dαn * dρ[nₑ,1] - dαϵ * dρ[nₙ,1] )/D
+
+    dρ[nₙ,L+1] =  (-dTn * dρ[nₑ,1] + dTϵ * dρ[nₙ,1] )/D
+
     return dρ
 end
 

@@ -9,7 +9,7 @@ T₀  = 1             #  GeV
 m    = 0.1          # m corresponds to m = 0.1  Gev and T = 1GeV
 α₀   = 0            # μ/T 
 
-r    = 1            # MB =0, FD = 1, BE = -1
+r    = 0            # MB =0, FD = 1, BE = -1
 
 
 tₛ  =  0.1           # fm
@@ -33,21 +33,21 @@ N = size(nₐᵣ)[1]
 L = 20
 
 #------------------ Initial desnity-------------------------------------------------
-ρ₀ = Matrix{Float64}(undef, N, L)
+ρ₀ = Matrix{Float64}(undef, N, L+1)
 
 Init_χ_Eq_q!(ρ₀,nₐᵣ,L,m,T₀,α₀,r)   # Initialises the moments with equilibrium initial conditions.
 
-
-
+ρ₀[nₙ,L+1] = α₀
+ρ₀[nₑ,L+1] = T₀
 
 #------------------Printing the parameter values------------------------------
 
 if r ==  0 
-    print("Maxwell Boltzmann moments")
+    println("Maxwell Boltzmann moments")
 elseif r ==  1
-    print("Fermi Dirac moments")
+    println("Fermi Dirac moments")
 elseif r == -1
-    print("Bose Einstein moments")
+    println("Bose Einstein moments")
 end
 
 println("m     : ", m)
@@ -64,17 +64,17 @@ T       = zeros(Float64, Nₚ)
 
 #------------------------------------------------
 println("\nSolving Scaled RTA.")
-p = (N,L,ωᵣ⁰,nₐᵣ,nₙ,nₑ)
+p = (N,L,ωᵣ⁰,nₐᵣ,nₙ,nₑ,1)
 
-χ = RK4(χ₀,tspan,SRTA,p)     # Rk4 solver for differential equations. Returns the moments as a function of time χ[t,n,l]
+ρ = RK4(ρ₀,tspan,RTA,p)     # Rk4 solver for differential equations. Returns the moments as a function of time χ[t,n,l]
 
 
 #---------------------------------------------------
-
+T = ρ[:,nₑ,L+1]
 τ = ((T).*(tspan)./((5)*η₀))  # \tau/\tau_R scaled time variable
 
 
-plot!(τ,T, 
+plot(τ,T, 
         xaxis   =:log ,
         xlabel  =   "τ",  
         ylabel  =   "T",
