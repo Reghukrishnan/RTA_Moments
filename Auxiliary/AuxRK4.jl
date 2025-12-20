@@ -1,4 +1,6 @@
 
+using ProgressMeter
+
 #---------------------------------------------------------------------
 function trange2(tspan,N,interpolation,n = nothing)
     if interpolation == "exp"
@@ -94,7 +96,7 @@ function RK4(y₀::Matrix,ts::Vector,fun,p = nothing)
             k₃ = fun(dy, yᵢ .+ 0.5*dt*k₂, t + 0.5*dt)
             k₄ = fun(dy, yᵢ .+     dt*k₃, t +     dt)
 
-            view(y,i+1,:,:) .= yᵢ .+ (dt*( k₁ .+ 2k₂ .+ 2k₃ .+ k₄ )/6)
+            @. view(y,i+1,:,:) .= yᵢ + (dt*( k₁ + 2k₂ + 2k₃ + k₄ )/6)
             next!(ProgressBar)  
         end
 
@@ -111,7 +113,77 @@ function RK4(y₀::Matrix,ts::Vector,fun,p = nothing)
             k₃ = fun(dy, yᵢ .+ 0.5*dt*k₂, t + 0.5*dt,p)
             k₄ = fun(dy, yᵢ .+     dt*k₃, t +     dt,p)
 
-            view(y,i+1,:,:) .= yᵢ .+ (dt*( k₁ .+ 2k₂ .+ 2k₃ .+ k₄ )/6)
+            @. view(y,i+1,:,:) .= yᵢ + (dt*( k₁ + 2k₂ + 2k₃ + k₄ )/6)
+            next!(ProgressBar)  
+        end
+    end
+    return y
+    
+end
+
+
+
+#-------------------------------------------------------------------------------------------------------
+function RK4(y₀::Vector,ts::Vector,fun,p = nothing)
+    print("Vector RK4 Solver Called. \n")
+    
+    Nt = length(ts)
+    ProgressBar = Progress(Nt-1)
+    ysize = (Nt,size(y₀)...)  # Get the size of the time series amtrix
+    y  = Array{Float64}(undef,ysize )  # Create the time series matrix
+
+    k₁ = similar(y₀)
+    k₂ = similar(y₀)
+    k₃ = similar(y₀)
+    k₄ = similar(y₀)
+    yt = similar(y₀) 
+    
+    view(y,1,:) .= y₀                # Initialise t = tᵢ value of y to y₀
+    
+    # Checks if the function takes any extra parameters.
+    if isnothing(p) 
+        for (i,t) in enumerate(ts[begin:end-1])
+
+            dt = ts[i+1] - ts[i]
+            
+            yᵢ = view(y,i,:)              # Creates a view of the Matrix of variables
+
+            # Computes the RK4 parameters
+            fun(k₁, yᵢ,t)
+
+            @. yt = yᵢ + 0.5*dt*k₁
+            fun(k₂, yt, t + 0.5*dt)
+
+            @. yt = yᵢ + 0.5*dt*k₂
+            fun(k₃, yt, t + 0.5*dt)
+
+            @. yt = yᵢ +     dt*k₃
+            fun(k₄,yt,  t +     dt)
+
+            @. y[i+1,:] = yᵢ + (dt*( k₁ + 2k₂ + 2k₃ + k₄ )/6)
+            next!(ProgressBar)  
+        end
+
+    else
+        for (i,t) in enumerate(ts[begin:end-1])
+
+            dt = ts[i+1] - ts[i]
+            
+            yᵢ = view(y,i,:)             # Creates a view of the Matrix of variables
+
+            # Computes the RK4 parameters
+            fun(k₁, yᵢ,t,p)
+
+            @. yt = yᵢ + 0.5*dt*k₁
+            fun(k₂, yt, t + 0.5*dt,p)
+
+            @. yt = yᵢ + 0.5*dt*k₂
+            fun(k₃, yt, t + 0.5*dt,p)
+
+            @. yt = yᵢ +     dt*k₃
+            fun(k₄, yt, t +     dt,p)
+
+            @. y[i+1,:] = yᵢ + (dt*( k₁ + 2k₂ + 2k₃ + k₄ )/6)
             next!(ProgressBar)  
         end
     end

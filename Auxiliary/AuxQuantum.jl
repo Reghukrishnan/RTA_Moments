@@ -101,6 +101,7 @@ function RTA(dρ::Matrix,ρ,t::Float64,p)
 
     #sol = nlsolve(Tα!,[Tₚ,αₚ])
     #T, α = sol.zero
+
     
     ζ = m/T
     
@@ -153,6 +154,14 @@ function RTA(dρ::Matrix,ρ,t::Float64,p)
         dρ[nₙ,L+1] =  ((-dTn * dρ[nₑ,1]) + (dTϵ * dρ[nₙ,1]) )/D
 
     else
+        #MOdify this
+        G30 = Gnl(3.0,0,ζ)
+        G40 = Gnl(4.0,0,ζ)
+        G41 = Gnl(4.0,1.0,ζ)
+        G50 = Gnl(5.0,0,ζ)
+    
+        Gd = G40^2 - G30*G50
+    
         
         χ11 = ρ[nₑ,2]/ρeq(T,α,1,1)
 

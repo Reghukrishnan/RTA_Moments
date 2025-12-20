@@ -2,19 +2,19 @@ using Plots
 using ProgressMeter
 
 include("AuxRK4.jl")
-include("AuxClassical.jl")
+include("AuxSMB.jl")
 
 
 #-----------SCALED INITIAL CONDITIONS---------------------
 
 T₀      = 1.0          #  GeV     
-m       = 0         # m corresponds to m = 0.1  Gev and T = 1GeV
+m       = 0.0         # m corresponds to m = 0.1  Gev and T = 1GeV
 α₀      = 0.0          # μ/T 
 
 
 tₛ      =  0.1           # fm
-tₑ      = 300
-τ₀      = 0.01
+tₑ      = 100
+τ₀      = 0.1
 
 η₀      =   (tₛ/τ₀)*(T₀/5)
 #---------------------------------------------------
@@ -52,7 +52,7 @@ println("τ₀    : ",τ₀)
 println("η₀/s₀ : ",η₀)
 
 
-Nₚ = 50000                        # Number of time steps
+Nₚ = 20000                        # Number of time steps
 ProgressBar = Progress(Nₚ)
 tspan = trange((tₛ,tₑ),Nₚ,"exp")  # Exponentially scaled time steps
 

@@ -1,3 +1,4 @@
+
 using SpecialFunctions
 using Integrals
 using NLsolve
@@ -11,32 +12,6 @@ using FastGaussQuadrature
 
 uᵢ,uwᵢ  = gausslaguerre(100)
 vᵢ,vwᵢ  = gausslegendre(50)
-
-
-
-#Integrant 
-function gnl(u,p)
-    ζ = p[1]
-    n = p[2]
-    l = p[3]
-    y = ζ .+ u
-
-    return @. ( y^(n-2.0*l-2.0))*(y^2.0 - ζ^2.0)^(l + 0.5)
-end
-
-
-function Gnl(n,l,ζ)
-    #println("---------",ζ)
-    if ζ == 0
-        #println("Called - 1")
-        return Γ(n)              
-    else
-        gx  = gnl(uᵢ,(ζ,n,l))
-        return exp(-ζ) * sum( (uwᵢ).*gx )
-    end
-end
-
-
 
 
 #--------------------Modified Maximum Entropy Distribution-------------------------------------------------------
@@ -104,244 +79,50 @@ end
 
 
 
-#-------------------------------------------------------------------------------------------------------
-
-function SRTA(dχ::Matrix,χ,t::Float64,p)
-    N   = p[1]
-    L   = p[2]
-    ωᵣ⁰   = p[3]
-    nₐᵣ = p[4]
-    nₙ  = p[5]
-    nₑ  = p[6]
-    γ  = p[7]
-
-    α = χ[nₙ,L+1]
-    T = χ[nₑ,L+1]
-    #println(χ[nₑ,1])
-    
-    
-    #println(m, "\n\n\n\n\n")
-    if m == 0
-        ζ = 0
-    else
-        ζ = m/T
-    end
-    #println("------------",T)
-    
-    
-    
-    ωᵣ = ωᵣ⁰*((T/T₀))
-    G30 = Gnl(3.0,0,ζ)
-    G40 = Gnl(4.0,0,ζ)
-    G41 = Gnl(4.0,1.0,ζ)
-    G50 = Gnl(5.0,0,ζ)
-    
-    Gd = G40^2 - G30*G50
-    
-
-    for (n,nᵥ) in enumerate(nₐᵣ)        
-        #--------------------------------------------------------------------------
-        for l = 1:L+1           
-            #--------------------------------------------------------------------------
-
-            # Here for lmax = L-1 we put the truncation condition.
-            if l < L           
-                h = (1/3)*( (( Gnl(nᵥ + 4.0,l-1,ζ )*G30 -  G40*Gnl(nᵥ + 3.0,l-1,ζ) )/(Gd))*(G41/Gnl(nᵥ + 3.0,l-1,ζ))*(χ[nₑ,2]* χ[n,l])  +  3*(nᵥ-2(l-1))*((2*(l-1) +1.0)/(2*(l-1) +3.0))*( Gnl(nᵥ + 3.0,l,ζ)/Gnl(nᵥ + 3.0,l-1,ζ) )* χ[n,l+1] )
-                
-                f = (2*(l-1))*χ[n,l] 
-                r = γ*ωᵣ*( χ[n,l] - 1 )
-
-                dχ[n,l] = -( h/t)- ( f/t)  - ( r )  
-            elseif l == L
-                h = (1/3)*( (( Gnl(nᵥ + 4,l-1,ζ)*G30 -  G40*Gnl(nᵥ + 3,l-1,ζ) )/(Gd))*(G41/Gnl(nᵥ + 3,l-1,ζ))*(χ[nₑ,2]* χ[n,l])  +  3* (nᵥ-2(l-1)) *( (2*(l-1) +1)/(2*(l-1) +3) )*( Gnl(nᵥ + 3.0,l,ζ)/Gnl(nᵥ + 3.0,l-1,ζ) )* 1 )
-                
-                f = (2*(l-1))*χ[n,l] 
-                r = γ*ωᵣ*( χ[n,l] - 1 )
-
-                dχ[n,l] = -( h/t)- ( f/t)  - ( r )  
-            else
-                dχ[n,L+1] = 0  
-            end         
-        end
-                
-    end
-    dχ[nₑ,L+1] = ( G41*G30/Gd)*χ[nₑ,2]*χ[nₑ,L+1]/(3t)
-
-    dχ[nₙ,L+1] = -( (G41*G40)/Gd)*(χ[nₑ,2]/(3t))- (1/t)
-    return dχ
-end
-
-#-------------------------------------------------------------------------------------------------------
-
-function DSRTA(dχ::Matrix,χ,t::Float64,p)
-
-    # p = (N,L,η₀,κ₀,nₐᵣ,nₙ,nₑ)
-    nₐᵣ = p[1]
-    nₙ  = p[2]
-    nₑ  = p[3]
-    ζ₀  = p[4]
-    uᵣ⁰ = p[5]
-  
-
-    α = χ[nₙ,L+1]       # μ/T
-    h = χ[nₑ,L+1]       # ln(τ₀T)
-    u = χ[nₑ+1,L+1]     # τ/τ₀
-    
-
-    T   = exp(h) 
-    uᵣ  = uᵣ⁰/T         # τᵣ/τ_₀ = η₀/(τ_₀T)
-    #print(T)
-    if ζ₀ == 0
-        ζ   = 0
-    else
-        ζ   = ζ₀/T      # m/T, (m/T₀)*(T₀/T) = 
-    end
-    
-
-    w = uᵣ/u
-    
-
-    G30 = Gnl(3.0,0,ζ)
-    G40 = Gnl(4.0,0,ζ)
-    G41 = Gnl(4.0,1.0,ζ)
-    G50 = Gnl(5.0,0,ζ)
-    
-    
-    Gd = G40^2 - G30*G50
-    
-
-    for (n,nᵥ) in enumerate(nₐᵣ)        
-        #--------------------------------------------------------------------------
-        for l = 1:L+1           
-            #--------------------------------------------------------------------------
-
-            # Here for lmax = L-1 we put the truncation condition.
-            if l < L           
-                g = (1/3)*( (( Gnl(ζ,nᵥ + 4.0,l-1)*G30 -  G40*Gnl(ζ,nᵥ + 3.0,l-1) )/(Gd))*(G41/Gnl(ζ,nᵥ + 3.0,l-1))*(χ[nₑ,2]* χ[n,l])  +  3*(nᵥ-2(l-1))*((2*(l-1) +1.0)/(2*(l-1) +3.0))*( Gnl(ζ,nᵥ + 3.0,l)/Gnl(ζ,nᵥ + 3.0,l-1) )* χ[n,l+1] )
-                
-                f = (2*(l-1))*χ[n,l] 
-                r = ( χ[n,l] - 1 )
-
-                dχ[n,l] = -( g +  f)*(w)  - ( r )  
-            elseif l == L
-                g = (1/3)*( (( Gnl(ζ,nᵥ + 4,l-1)*G30 -  G40*Gnl(ζ,nᵥ + 3,l-1) )/(Gd))*(G41/Gnl(ζ,nᵥ + 3,l-1))*(χ[nₑ,2]* χ[n,l])  +  3* (nᵥ-2(l-1)) *( (2*(l-1) +1)/(2*(l-1) +3) )*( Gnl(ζ,nᵥ + 3.0,l)/Gnl(ζ,nᵥ + 3.0,l-1) )* 1 )
-                
-                f = (2*(l-1))*χ[n,l] 
-                r = ( χ[n,l] - 1 )
-
-                dχ[n,l] = -( g +  f)*(w)  - ( r )   
-            else
-                dχ[n,L+1] = 0  
-            end         
-        end
-                
-    end
-    dχ[nₑ,L+1] = ( G41*G30/Gd)*χ[nₑ,2]*(w/3)  # h ~ τ₀T
-    
-    dχ[nₙ,L+1] = -( (G41*G40)/Gd)*(χ[nₑ,2]*(w/3))- (w)
-
-    #println("dχ[nₑ,L+1]     :",dχ[nₑ,L+1] )
-    dχ[nₑ+1,L+1] = uᵣ
-
-    return dχ
-end
 
 
-#------------------------------------------------------------------------------------------------------------
-
-#---------------
-function ρeq(T,α,n,l)
-    ζ = m/T
-    return (exp(α))*((T^(n+3))/((2l+1)*(2*(π^2)))) * Gnl(n+3,l,ζ)
-end
 
 
-function Init_ρ_Eq_b!(ρ₀,nₐᵣ,L,m,T,α)
-    ζ = m/T
+
+
+
+
+
+
+
+
+
+#--------------------Initialises moments for an isotropic Maxwell Juttner equilibrium distibution --------------------------------
+function InitχEq!(χ₀,nₐᵣ,L,m,T,α)
+
     for (n,nv) in enumerate(nₐᵣ)    
-        for l in 1:L  
+        for l in 0:L-1  
             #println(nv," ",l)      
-            ρ₀[n,l] = ρeq(T,α,nv,l-1)  #+ ρeq(T₀,μ₀,nv,0)*(l/(2*l + 1)^(2))
+            χ₀[n,l+1] = 1#+ ρeq(T₀,μ₀,nv,0)*(l/(2*l + 1)^(2))
         end
     end
 end
 
+#--------------------Initialises moments for an an-isotropic distibution --------------------------------
+function InitχAIso!(χ₀,nₐᵣ,L,p,Idst = Mnl) # p = (ζ,α,Πₚ,πₚ)
+    ζ   = p[1]
+    πₚ  = p[2]      # Π/P ratio
+    Πₚ  = p[3]      # π/P ratio
 
+    β,ξ,ϑ = PAnIso(ζ,πₚ,Πₚ,Idst)   # Finding parameters for corresponding values of  Πₚ and πₚ
 
+    println("Parameters Found \n")
+    ΕnΠπP(ζ,[β,ξ,ϑ],Idst)         # Prints the thermodynamic parameters as a check
 
-
-function RTAB(dρ::Matrix,ρ,t::Float64,p)
-    N   = p[1]
-    L   = p[2]
-    ωᵣ⁰  = p[3]
-    nₐᵣ = p[4]
-    nₙ  = p[5]
-    nₑ  = p[6]      
-    γ  = p[7]       #γ = 0 implies free streaming system
-
-    
-    T = (1/3)*(   ρ[nₑ,1]/ρ[nₙ,1] )
-    α = log((ρ[nₙ,1]*(π^2))/(T^3))
-    
-    #T = ρ[nₑ,L+1]
-    #α = ρ[nₙ,L+1]
-
-    ζ = m/T
-    
-    # Use a root finding algorith to find the Temperature and α
-    # Initial Guess, we use conformal MB results
-    #sol = nsolve(Tα!,[Tₚ,αₚ])
-    #T, α = sol.zero
-
-    ωᵣ = (ωᵣ⁰)*(T/T₀)     # τᵣ⁰ = 5η₀/T₀. --> ωᵣ⁰ = 1/τᵣ⁰ = T₀/5η₀ --> ωᵣ = ωᵣ⁰(T/T₀)
-
-    G30 = Gnl(3.0,0,ζ)
-    G40 = Gnl(4.0,0,ζ)
-    G41 = Gnl(4.0,1.0,ζ)
-    G50 = Gnl(5.0,0,ζ)
-    
-    Gd = G40^2 - G30*G50
-    
-    
-
-
-    for (n,nᵥ) in enumerate(nₐᵣ)        
-        #--------------------------------------------------------------------------
-        for l = 1:L+1           
-            #--------------------------------------------------------------------------
-
-            # Here for lmax = L-1 we put the truncation condition.
-            if l < L           
-
-                free = (  (2*(l-1)+1) *ρ[n,l] ) + ( (nᵥ-2*(l-1)) *ρ[n,l+1] )# Free streaming part
-
-                relx = γ*ωᵣ*( ρ[n,l] - ρeq(T,α,nᵥ,l-1) )        # Relaxation part
-                
-
-                dρ[n,l] = - ( free/t)  - ( relx )  
-
-            elseif l == L
-
-                free = ((2*(l-1)+1)*ρ[n,l] ) + ((nᵥ-2*(l-1))*ρeq(T,α,nᵥ,l)) # L+1 moment is at equilibrium (closure condition)
-
-                relx = γ*ωᵣ*( ρ[n,l] - ρeq(T,α,nᵥ,l-1) )
-
-                dρ[n,l] = - ( free/t )  - ( relx )  
-            else
-                dρ[n,L+1] = 0  
-            end         
+    p = (β,ξ,ϑ )
+    println("\nInitialising scaled Moments\n")
+    for (n,nv) in enumerate(nₐᵣ)    
+        for l in 0:L-1  
+            #println(nv," ",l)      
+            χ₀[n,l+1] = ( Idst(n,l,ζ,p)/Gnl(n,l,ζ) )     # ρeq(T₀,μ₀,nv,0)*(l/(2*l + 1)^(2))
         end
-                
     end
 
-    χ11 = ρ[nₑ,2]/ρeq(T,α,1,1)
-
-
-    dρ[nₑ,L+1] = ( G41*G30/Gd)*(χ11*ρ[nₑ,L+1])/(3t)
-
-    dρ[nₙ,L+1] = -( (G41*G40)/Gd)*(χ11/(3t))- (1/t)
-
-    return dρ
 end
 
 
@@ -571,40 +352,3 @@ function ΕnΠπP(ζ=0.0001,p=[1.0,0.0,0.0],Idst=Mnl)   # Returns ϵ,n,πₚ,Π�
 
     return ϵ,n,πₚ,Πₚ 
 end
-
-
-
-
-#--------------------Initialises moments for an isotropic Maxwell Juttner equilibrium distibution --------------------------------
-function InitχEq!(χ₀,nₐᵣ,L,m,T,α)
-
-    for (n,nv) in enumerate(nₐᵣ)    
-        for l in 0:L-1  
-            #println(nv," ",l)      
-            χ₀[n,l+1] = 1#+ ρeq(T₀,μ₀,nv,0)*(l/(2*l + 1)^(2))
-        end
-    end
-end
-
-#--------------------Initialises moments for an an-isotropic distibution --------------------------------
-function InitχAIso!(χ₀,nₐᵣ,L,p,Idst = Mnl) # p = (ζ,α,Πₚ,πₚ)
-    ζ   = p[1]
-    πₚ  = p[2]      # Π/P ratio
-    Πₚ  = p[3]      # π/P ratio
-
-    β,ξ,ϑ = PAnIso(ζ,πₚ,Πₚ,Idst)   # Finding parameters for corresponding values of  Πₚ and πₚ
-
-    println("Parameters Found \n")
-    ΕnΠπP(ζ,[β,ξ,ϑ],Idst)         # Prints the thermodynamic parameters as a check
-
-    p = (β,ξ,ϑ )
-    println("\nInitialising scaled Moments\n")
-    for (n,nv) in enumerate(nₐᵣ)    
-        for l in 0:L-1  
-            #println(nv," ",l)      
-            χ₀[n,l+1] = ( Idst(n,l,ζ,p)/Gnl(n,l,ζ) )     # ρeq(T₀,μ₀,nv,0)*(l/(2*l + 1)^(2))
-        end
-    end
-
-end
-
